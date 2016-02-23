@@ -497,15 +497,10 @@ module.exports =
               result.msg = "Error: No network called #{_ap.ssid} could be found."
               WiFiLog result.msg, true
               return result
-            else if /: \(7\) Secrets were required, but not provided.$/.test(errorMsg)
-              result.msg = "Error: Could not authenticate."
-              result.errorCode = 7;
-              WiFi result.msg, true
-              return result
-            else if /: (32) Insufficient privileges$/.test(errorMsg)
+            else if /: Insufficient privileges\.$/.test(errorMsg)
               result.msg = "Error: Insufficient privileges."
               result.errorCode = 32;
-              WiFi result.msg, true
+              WiFiLog result.msg, true
               return result
             # Ignore nmcli's add/modify errors, this is a system bug
             unless /nmcli device wifi connect/.test(COMMANDS[com])
