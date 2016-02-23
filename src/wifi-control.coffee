@@ -491,13 +491,22 @@ module.exports =
         catch error
           # Handle Linux errors:
           if process.platform is "linux"
-            if error.stderr.toString().trim() is "Error: No network with SSID '#{_ap.ssid}' found."
-              _msg = "Error: No network called #{_ap.ssid} could be found."
-              WiFiLog _msg, true
-              return {
-                success: false
-                msg: _msg
-              }
+            errorMsg = error.stderr.toString().trim()
+            result = { success: false }
+            if errorMsg is "Error: No network with SSID '#{_ap.ssid}' found."
+              result.msg = "Error: No network called #{_ap.ssid} could be found."
+              WiFiLog result.msg, true
+              return result
+            else if /: \(7\) Secrets were required, but not provided.$/.test(errorMsg)
+              result.msg = "Error: Could not authenticate."
+              result.errorCode = 7;
+              WiFi result.msg, true
+              return result
+            else if /: (32) Insufficient privileges$/.test(errorMsg)
+              result.msg = "Error: Insufficient privileges."
+              result.errorCode = 32;
+              WiFi result.msg, true
+              return result
             # Ignore nmcli's add/modify errors, this is a system bug
             unless /nmcli device wifi connect/.test(COMMANDS[com])
               WiFiLog error, true
