@@ -407,8 +407,10 @@ module.exports =
           COMMANDS =
             delete: "nmcli connection delete \"#{_ap.ssid}\""
             connect: "nmcli device wifi connect \"#{_ap.ssid}\""
+            
           if _ap.password.length
             COMMANDS.connect += " password \"#{_ap.password}\""
+
           try
             stdout = execSync "nmcli connection show \"#{_ap.ssid}\""
             ssidExist = true if stdout.length
@@ -419,10 +421,21 @@ module.exports =
           #     Then, create a new connection.
           #
           connectToAPChain = []
+            
           if ssidExist
             WiFiLog "It appears there is already a connection for this SSID."
             connectToAPChain.push "delete"
+          
           connectToAPChain.push "connect"
+          
+          if _ap.ip4 && _ap.ip4.length
+            COMMANDS.setIP4 = "nmcli con mod \"#{_ap.ssid}\" ipv4.addresses \"#{_ap.ip4}\""
+            COMMANDS.setGW4 = "nmcli con mod \"#{_ap.ssid}\" ipv4.gateway \"#{_ap.gw4}\""  
+            COMMANDS.addDNS = "nmcli con mod \"#{_ap.ssid}\" ipv4.dns \"8.8.8.8 8.8.4.4\""
+            COMMANDS.setMethod = "nmcli con mod \"#{_ap.ssid}\" ipv4.method \"manual\""
+            COMMANDS.down = "nmcli con down \"#{_ap.ssid}\""
+            COMMANDS.up = "nmcli con up \"#{_ap.ssid}\""
+            connectToAPChain = connectToAPChain.concat ['setIP4', 'setGW4', 'addDNS', 'setMethod', 'up']
         #
         # Windows is a special child.  While the netsh command provides us
         # quite a bit of functionality, the real kicker is that to connect
@@ -504,7 +517,7 @@ module.exports =
               return result
             # Ignore nmcli's add/modify errors, this is a system bug
             unless /nmcli device wifi connect/.test(COMMANDS[com])
-              WiFiLog error, true
+              WiFiLog errorMsg, true
               return {
                 success: false
                 msg: error
