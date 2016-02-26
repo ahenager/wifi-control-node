@@ -148,6 +148,24 @@ win32WirelessProfileBuilder = (ssid, security=false, key=null) ->
   profile_content += "</WLANProfile>"
   return profile_content
 
+parseNMCLIOutput = (output) ->
+  output = output.split('\n')
+  connection = {}
+  pattern = /^([^.]*)\.([^:[]*)(\[(\d)\])?:(.*)/
+  for line in output
+    matches = pattern.exec(line)
+    if !matches or matches.length < 3 
+      continue;
+    connectionKey = matches[1].replace(/-/g, '_')
+    propertyKey = matches[2].replace(/-/g, '_')
+    subObj = connection[connectionKey] = connection[connectionKey] or {}
+    value = matches[5] != '--' and matches[5] or null
+    if matches[4]
+      subObj[propertyKey] = subObj[propertyKey] or []
+      subObj[propertyKey].push value
+    else
+      subObj[propertyKey] = value
+  return connection
 
 
 #
@@ -708,9 +726,14 @@ module.exports =
               # (3) Next, we get the actual SSID
               #
               try
-                ssidData = execSync "nmcli -m multiline connection show \"#{connectionName}\" | grep 802-11-wireless.ssid"
-                parsedLine = parsePatterns.nmcli_line.exec( ssidData.trim() )
-                interfaceState.ssid = parsedLine[2]
+                nmCLIOutput = execSync "nmcli -t connection show \"#{connectionName}\""
+                connection = parseNMCLIOutput nmCLIOutput
+                interfaceState.ssid = connection['802_11_wireless'].ssid
+                if connection.ipv4
+                  interfaceState.method4 = connection.ipv4.method
+                if connection.IP4 and connection.IP4.ADDRESS
+                  interfaceState.ip4 = connection.IP4.ADDRESS[0]
+                  interfaceState.gw4 = connection.IP4.GATEWAY
               catch error
                 return {
                   success: false
@@ -795,6 +818,9 @@ module.exports =
         msg: "Successfully acquired state of network interface #{WiFiControlSettings.iface}."
         ssid: interfaceState.ssid
         connection: interfaceState.connection
+        method4: interfaceState.method4
+        ip4: interfaceState.ip4
+        gw4: interfaceState.gw4
         power: interfaceState.power
       }
     catch error
